@@ -65,6 +65,20 @@ public plugin_init() {
             FCVAR_SPONLY,
             "The current version of cs_player_model_manager being used");
 
+#if defined DEBUG_MODE
+    register_concmd(
+            "models.players.list",
+            "printModels",
+            ADMIN_CFG,
+            "Prints the list of registered player models");
+
+    register_concmd(
+            "models.players.get",
+            "printCurrentModels",
+            ADMIN_CFG,
+            "Prints each player and the current model they have applied");
+#endif
+
     g_fw[onSetUserPlayerModelPre] = CreateMultiForward(
             "cs_onSetUserPlayerModelPre",
             ET_STOP,
@@ -84,6 +98,54 @@ public plugin_end() {
     ArrayDestroy(g_modelList);
     TrieDestroy(g_modelTrie);
 }
+
+/*******************************************************************************
+ * Console Commands
+ ******************************************************************************/
+
+#if defined DEBUG_MODE
+public printModels(id) {
+    console_print(id, "Outputting player models list...");
+    for (new i = 0; i < g_numModels; i++) {
+        ArrayGetArray(g_modelList, i, g_tempInternalPlayerModel);
+        cs_getModelData(
+                g_tempInternalPlayerModel[internal_playermodel_ParentHandle],
+                g_tempModel);
+        console_print(
+                id,
+                "%d. %s [%s]",
+                i+1,
+                g_tempModel[model_Name],
+                g_tempModel[model_Path]);
+    }
+    
+    console_print(id, "%d player models registered", g_numModels);
+}
+
+public printCurrentModels(id) {
+    console_print(id, "Outputting players...");
+    for (new i = 1; i <= MaxClients; i++) {
+        if (!is_user_connected(i)) {
+            console_print(id, "%d. DISCONNECTED", i);
+        } else if (!isValidPlayerModel(g_currentModel[i])) {
+            console_print(id, "%d. %N []", i, i);
+        } else {
+            ArrayGetArray(g_modelList, any:g_currentModel[i]-1, g_tempInternalPlayerModel);
+            cs_getModelData(
+                    g_tempInternalPlayerModel[internal_playermodel_ParentHandle],
+                    g_tempModel);
+            console_print(
+                    id,
+                    "%d. %N [%s]",
+                    i,
+                    i,
+                    g_tempModel[model_Name]);
+        }
+    }
+    
+    console_print(id, "Done.");
+}
+#endif
 
 bool:isValidPlayerModel(PlayerModel:model) {
     return Invalid_Player_Model < model && any:model <= g_numModels;

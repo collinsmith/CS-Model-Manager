@@ -45,12 +45,41 @@ public plugin_init() {
             VERSION_STRING,
             FCVAR_SPONLY,
             "The current version of cs_model_manager being used");
+
+#if defined DEBUG_MODE
+    register_concmd(
+            "models.list",
+            "printModels",
+            ADMIN_CFG,
+            "Prints the list of registered models");
+#endif
 }
 
 public plugin_end() {
     ArrayDestroy(g_modelList);
     TrieDestroy(g_modelTrie);
 }
+
+/*******************************************************************************
+ * Console Commands
+ ******************************************************************************/
+
+#if defined DEBUG_MODE
+public printModels(id) {
+    console_print(id, "Outputting models list...");
+    for (new i = 0; i < g_numModels; i++) {
+        ArrayGetArray(g_modelList, i, g_tempModel);
+        console_print(
+                id,
+                "%d. %s [%s]",
+                i+1,
+                g_tempModel[model_Name],
+                g_tempModel[model_Path]);
+    }
+    
+    console_print(id, "%d models registered", g_numModels);
+}
+#endif
 
 bool:isValidModel(Model:model) {
     return Invalid_Model < model && any:model <= g_numModels;
