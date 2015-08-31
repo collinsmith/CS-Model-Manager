@@ -18,7 +18,7 @@
  * 
  * @param name Name of the player model
  * 
- * @return     {@literal true} if one has, otherwise {@literal false}
+ * @return {@literal true} if one has, otherwise {@literal false}
  * 
  * @see #cs_findPlayerModelByName(name[])
  */
