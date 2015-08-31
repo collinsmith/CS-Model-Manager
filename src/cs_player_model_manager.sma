@@ -37,6 +37,7 @@ static g_numModels = 0;
 
 static PlayerModel:g_currentModel[MAX_PLAYERS+1] = { Invalid_Player_Model, ... };
 static PlayerModel:g_newModel;
+static bool:g_isInOnSetUserModelPre = false;
 static g_tempModel[model_t];
 static g_tempPlayerModel[playermodel_t];
 static g_tempInternalPlayerModel[internal_playermodel_t];
@@ -168,7 +169,8 @@ public PlayerModel:_registerPlayerModel(pluginId, numParams) {
     if (g_fw[returnVal] == 0) {
         log_error(
                 AMX_ERR_NATIVE,
-                "[cs_registerPlayerModel] Failed to execute cs_onPlayerModelRegistered for model: %s [%s]",
+                "[cs_registerPlayerModel] Failed to execute \
+                    cs_onPlayerModelRegistered for model: %s [%s]",
                 g_tempPlayerModel[playermodel_Parent][model_Name],
                 g_tempPlayerModel[playermodel_Parent][model_Path]);
     }
@@ -305,16 +307,19 @@ public _setUserPlayerModel(pluginId, numParams) {
 #endif
 
     new PlayerModel:oldModel = g_currentModel[id];
+    g_isInOnSetUserModelPre = true;
     g_fw[returnVal] = ExecuteForward(
             g_fw[onSetUserPlayerModelPre],
             g_fw[returnVal],
             oldModel,
             g_newModel);
+    g_isInOnSetUserModelPre = false;
 
     if (g_fw[returnVal] == 0) {
         log_error(
                 AMX_ERR_NATIVE,
-                "[cs_setUserPlayerModel] Failed to execute cs_onSetUserPlayerModelPre on player %N",
+                "[cs_setUserPlayerModel] Failed to execute \
+                    cs_onSetUserPlayerModelPre on player %N",
                 id);
     }
 
@@ -335,7 +340,8 @@ public _setUserPlayerModel(pluginId, numParams) {
     if (g_fw[returnVal] == 0) {
         log_error(
                 AMX_ERR_NATIVE,
-                "[cs_setUserPlayerModel] Failed to execute cs_onSetUserPlayerModelPost on player %N",
+                "[cs_setUserPlayerModel] Failed to execute \
+                    cs_onSetUserPlayerModelPost on player %N",
                 id);
     }
 }
@@ -405,6 +411,14 @@ public PlayerModel:_getUserPlayerModel(pluginId, numParams) {
  * @link #cs_changeOnSetUserModelModel(model)
  */
 public _changeOnSetUserModelModel(pluginId, numParams) {
+    if (!g_isInOnSetUserModelPre) {
+        log_error(
+                AMX_ERR_NATIVE,
+                "[cs_changeOnSetUserModelModel] Invalid state. Can only call \
+                    this during cs_onSetUserPlayerModelPre");
+        return;
+    }
+
 #if defined DEBUG_MODE
     if (isInvalidNumberOfParams("cs_changeOnSetUserModelModel", 1, numParams)) {
         return;
@@ -415,7 +429,8 @@ public _changeOnSetUserModelModel(pluginId, numParams) {
     if (!isValidPlayerModel(newModel)) {
         log_error(
                 AMX_ERR_NATIVE,
-                "[cs_changeOnSetUserModelModel] Invalid player model specified: %d",
+                "[cs_changeOnSetUserModelModel] Invalid player model \
+                    specified: %d",
                 newModel);
         return;
     }
@@ -424,7 +439,8 @@ public _changeOnSetUserModelModel(pluginId, numParams) {
     if (!validateParent(newModel)) {
         log_error(
                 AMX_ERR_NATIVE,
-                "[cs_changeOnSetUserModelModel] Invalid player model for parent: %d",
+                "[cs_changeOnSetUserModelModel] Invalid player model for \
+                    parent: %d",
                 g_tempInternalPlayerModel[internal_playermodel_ParentHandle]);
         return;
     }

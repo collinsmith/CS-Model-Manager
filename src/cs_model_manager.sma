@@ -90,7 +90,8 @@ public Model:_registerModel(pluginId, numParams) {
 
     copyAndTerminate(1,g_tempModel[model_Name],model_Name_length,g_tempModel[model_NameLength]);
     if (isEmpty(g_tempModel[model_Name])) {
-        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Invalid parameter specified: 'name' cannot be empty");
+        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Invalid parameter \
+                specified: 'name' cannot be empty");
         return Invalid_Model;
     }
 
@@ -101,10 +102,12 @@ public Model:_registerModel(pluginId, numParams) {
 
     copyAndTerminate(2,g_tempModel[model_Path],model_Path_length,g_tempModel[model_PathLength]);
     if (isEmpty(g_tempModel[model_Path])) {
-        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Invalid parameter specified: 'path' cannot be empty");
+        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Invalid parameter \
+                specified: 'path' cannot be empty");
         return Invalid_Model;
     } else if (!cs_precache(g_tempModel[model_Path])) {
-        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Failed to precache model: %s [%s]", g_tempModel[model_Name], g_tempModel[model_Path]);
+        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Failed to precache \
+                model: %s [%s]", g_tempModel[model_Name], g_tempModel[model_Path]);
         return Invalid_Model;
     }
 
@@ -127,7 +130,8 @@ public Model:_registerModel(pluginId, numParams) {
             PrepareArray(g_tempModel, model_t));
 
     if (g_fw[returnVal] == 0) {
-        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Failed to execute cs_onModelRegistered for model: %s [%s]", g_tempModel[model_Name], g_tempModel[model_Path]);
+        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Failed to execute \
+                cs_onModelRegistered for model: %s [%s]", g_tempModel[model_Name], g_tempModel[model_Path]);
     }
 
     return model;

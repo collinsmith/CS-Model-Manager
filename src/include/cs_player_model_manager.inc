@@ -203,6 +203,7 @@ native PlayerModel:cs_getUserPlayerModel(id);
  *                  the one currently passing through {@link
  *                  #cs_onSetUserPlayerModelPre(id,oldModel,newModel)}
  * 
- * @error If an invalid player model handle is specified.
+ * @error If an invalid player model handle is specified, or if this is called
+ *        outside of {@link #cs_onSetUserPlayerModelPre(id,oldModel,newModel)}
  */
 native cs_changeOnSetUserModelModel(PlayerModel:model);
