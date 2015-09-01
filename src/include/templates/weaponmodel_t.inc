@@ -30,5 +30,5 @@ enum weaponmodel_t {
 #define getWeaponModelParent(%1)\
     %1[playermodel_Parent]
 
-#define getWeaponWeapon(%1)\
+#define getWeaponModelWeapon(%1)\
     %1[weaponmodel_Weapon]
