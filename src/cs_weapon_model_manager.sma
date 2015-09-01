@@ -2,7 +2,6 @@
 #define DEBUG_MODE
 
 #include <amxmodx>
-#include <cstrike>
 
 #include "include/templates/weaponmodel_t.inc"
 #include "include/cs_model_manager.inc"
