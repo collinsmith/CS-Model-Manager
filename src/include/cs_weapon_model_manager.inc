@@ -21,6 +21,10 @@ stock cs_isWeaponModelRegistered(const name[]) {
     return cs_findWeaponModelByName(name) != Invalid_Weapon_Model
 }
 
+stock bool:cs_isWeaponForModel(weapon, const name[]) {
+    return weapon == cs_getWeaponForModel(name);
+}
+
 /*******************************************************************************
  * FORWARDS
  ******************************************************************************/
@@ -45,12 +49,11 @@ forward cs_onSetUserWeaponModelPost(id, weapon, WeaponModel:oldModel, WeaponMode
  ******************************************************************************/
 
 native WeaponModel:cs_registerWeaponModel(weapon, const name[]);
-native WeaponModel:cs_findWeaponModelByName(const name[]);
+native WeaponModel:cs_findWeaponModelByName(const name[], any:...);
 native WeaponModel:cs_getWeaponModelData(WeaponModel:model, data[weaponmodel_t]);
-native bool:cs_isValidWeaponModel({WeaponModel,_}:model);
-native bool:cs_validateWeaponModel({WeaponModel,_}:model);
-native bool:cs_isWeaponForModel(weapon, const name[]);
-native cs_getWeaponForModel(const name[]);
+native cs_getWeaponForModel(WeaponModel:model); // returns -1 for invalid model
+native bool:cs_isValidWeaponModel({WeaponModel,any}:model);
+native bool:cs_validateWeaponModel({WeaponModel,any}:model);
 native cs_setUserWeaponModel(id, WeaponModel:model);
 native cs_getUserWeaponModel(id, weapon);
 native cs_resetUserWeaponModel(id, weapon);

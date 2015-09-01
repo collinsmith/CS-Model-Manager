@@ -104,7 +104,7 @@ Model:findModelByName(name[]) {
  */
 public Model:_registerModel(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_registerModel", 2, numParams)) {
+    if (isInvalidNumberOfParams("cs_registerModel", numParams, 2)) {
         return Invalid_Model;
     }
 #endif
@@ -171,7 +171,7 @@ public Model:_registerModel(pluginId, numParams) {
  */
 public Model:_findModelByName(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_findModelByName", 1, numParams)) {
+    if (isInvalidNumberOfParams("cs_findModelByName", numParams, 1)) {
         return Invalid_Model;
     }
 #endif
@@ -193,7 +193,7 @@ public Model:_findModelByName(pluginId, numParams) {
  */
 public Model:_getModelData(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_findModelByName", 2, numParams)) {
+    if (isInvalidNumberOfParams("cs_findModelByName", numParams, 2)) {
         return Invalid_Model;
     }
 
@@ -218,7 +218,7 @@ public Model:_getModelData(pluginId, numParams) {
  */
 public bool:_isValidModel(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_isValidModel", 1, numParams)) {
+    if (isInvalidNumberOfParams("cs_isValidModel", numParams, 1)) {
         return false;
     }
 #endif

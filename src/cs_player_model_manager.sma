@@ -9,11 +9,18 @@
 #include "include/cs_precache_stocks.inc"
 #include "include/param_test_stocks.inc"
 
-#define INITIAL_MODELS_SIZE 4
+#define INITIAL_MODELS_SIZE 8
 
 #define copyAndTerminate(%1,%2,%3,%4)\
     %4 = get_string(%1, %2, %3);\
     %2[%4] = EOS
+
+#define copyInto(%1,%2)\
+    new Model:parentModel = cs_getModelData(\
+            %1[internal_playermodel_ParentHandle],\
+            g_tempModel);\
+        assert cs_isValidModel(parentModel);\
+        %2[playermodel_Parent] = g_tempModel
 
 #define isEmpty(%1)\
     (%1[0] == EOS)
@@ -37,7 +44,7 @@ static g_numModels = 0;
 
 static PlayerModel:g_currentModel[MAX_PLAYERS+1] = { Invalid_Player_Model, ... };
 static PlayerModel:g_newModel;
-static bool:g_isInOnSetUserModelPre = false;
+static bool:g_isInOnSetUserPlayerModelPre = false;
 static g_tempModel[model_t];
 static g_tempPlayerModel[playermodel_t];
 static g_tempInternalPlayerModel[internal_playermodel_t];
@@ -78,20 +85,6 @@ public plugin_init() {
             ADMIN_CFG,
             "Prints each player and the current model they have applied");
 #endif
-
-    g_fw[onSetUserPlayerModelPre] = CreateMultiForward(
-            "cs_onSetUserPlayerModelPre",
-            ET_STOP,
-            FP_CELL,
-            FP_CELL,
-            FP_CELL);
-
-    g_fw[onSetUserPlayerModelPost] = CreateMultiForward(
-            "cs_onSetUserPlayerModelPost",
-            ET_IGNORE,
-            FP_CELL,
-            FP_CELL,
-            FP_CELL);
 }
 
 public plugin_end() {
@@ -168,6 +161,32 @@ PlayerModel:findPlayerModelByName(name[]) {
     return Invalid_Player_Model;
 }
 
+bool:isInvalidPlayerModelHandleParam(const function[], PlayerModel:model) {
+    if (!isValidPlayerModel(model)) {
+        log_error(
+                AMX_ERR_NATIVE,
+                "[%s] Invalid player model handle specified: %d",
+                function,
+                model);
+        return true;
+    }
+
+    return false;
+}
+
+stock bool:isInvalidModelHandleParam(const function[], PlayerModel:model) {
+    if (!validateParent(model)) {
+        log_error(
+                AMX_ERR_NATIVE,
+                "[%s] Invalid model handle for parent of player model: %d",
+                function,
+                g_tempInternalPlayerModel[internal_playermodel_ParentHandle]);
+        return true;
+    }
+
+    return false;
+}
+
 /*******************************************************************************
  * NATIVES
  ******************************************************************************/
@@ -177,7 +196,7 @@ PlayerModel:findPlayerModelByName(name[]) {
  */
 public PlayerModel:_registerPlayerModel(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_registerPlayerModel", 1, numParams)) {
+    if (isInvalidNumberOfParams("cs_registerPlayerModel", numParams, 1)) {
         return Invalid_Player_Model;
     }
 #endif
@@ -202,10 +221,11 @@ public PlayerModel:_registerPlayerModel(pluginId, numParams) {
             g_tempPlayerModel[playermodel_Parent][model_Path],
             model_Path_length);
 
-    g_tempInternalPlayerModel[internal_playermodel_ParentHandle] = cs_registerModel(
-            g_tempPlayerModel[playermodel_Parent][model_Name],
-            g_tempPlayerModel[playermodel_Parent][model_Path]);
-    if (!cs_isValidModel(g_tempInternalPlayerModel[internal_playermodel_ParentHandle])) {
+    new Model:parent = g_tempInternalPlayerModel[internal_playermodel_ParentHandle]
+            = cs_registerModel(
+                g_tempPlayerModel[playermodel_Parent][model_Name],
+                g_tempPlayerModel[playermodel_Parent][model_Path]);
+    if (!cs_isValidModel(parent)) {
         // Error already reported while registering
         return Invalid_Player_Model;
     }
@@ -241,11 +261,11 @@ public PlayerModel:_registerPlayerModel(pluginId, numParams) {
 }
 
 /**
- * @link #cs_findPlayerModelByName(name[])
+ * @link #cs_findPlayerModelByName(name[],...)
  */
 public PlayerModel:_findPlayerModelByName(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_findPlayerModelByName", 1, numParams)) {
+    if (isInvalidNumberOfParamsInRange("cs_findPlayerModelByName", numParams, 1, 2)) {
         return Invalid_Player_Model;
     }
 #endif
@@ -259,7 +279,14 @@ public PlayerModel:_findPlayerModelByName(pluginId, numParams) {
         return Invalid_Player_Model;
     }
 
-    return findPlayerModelByName(g_tempPlayerModel[playermodel_Parent][model_Name]);
+    new PlayerModel:model = findPlayerModelByName(g_tempPlayerModel[playermodel_Parent][model_Name]);
+    if (isValidPlayerModel(model) && numParams == 2) {
+        ArrayGetArray(g_modelList, any:model-1, g_tempInternalPlayerModel);
+        copyInto(g_tempInternalPlayerModel,g_tempPlayerModel);
+        set_array(2, g_tempPlayerModel, playermodel_t);
+    }
+
+    return model;
 }
 
 /**
@@ -267,7 +294,7 @@ public PlayerModel:_findPlayerModelByName(pluginId, numParams) {
  */
 public PlayerModel:_getPlayerModelData(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_getPlayerModelData", 2, numParams)) {
+    if (isInvalidNumberOfParams("cs_getPlayerModelData", numParams, 2)) {
         return Invalid_Player_Model;
     }
 
@@ -278,17 +305,12 @@ public PlayerModel:_getPlayerModelData(pluginId, numParams) {
 #endif
 
     new PlayerModel:model = PlayerModel:get_param(1);
-    if (!isValidPlayerModel(model)) {
+    if (isInvalidPlayerModelHandleParam("cs_getPlayerModelData", model)) {
         return Invalid_Player_Model;
     }
 
     ArrayGetArray(g_modelList, any:model-1, g_tempInternalPlayerModel);
-    
-    new Model:parentModel = cs_getModelData(
-        g_tempInternalPlayerModel[internal_playermodel_ParentHandle],
-        g_tempModel);
-    assert cs_isValidModel(parentModel);
-    g_tempPlayerModel[playermodel_Parent] = g_tempModel;
+    copyInto(g_tempInternalPlayerModel,g_tempPlayerModel);
     set_array(2, g_tempPlayerModel, playermodel_t);
     return model;
 }
@@ -298,7 +320,7 @@ public PlayerModel:_getPlayerModelData(pluginId, numParams) {
  */
 public bool:_isValidPlayerModel(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_isValidPlayerModel", 1, numParams)) {
+    if (isInvalidNumberOfParams("cs_isValidPlayerModel", numParams, 1)) {
         return false;
     }
 #endif
@@ -312,7 +334,7 @@ public bool:_isValidPlayerModel(pluginId, numParams) {
  */
 public bool:_validatePlayerModel(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_validatePlayerModel", 1, numParams)) {
+    if (isInvalidNumberOfParams("cs_validatePlayerModel", numParams, 1)) {
         return false;
     }
 #endif
@@ -326,56 +348,48 @@ public bool:_validatePlayerModel(pluginId, numParams) {
  */
 public _setUserPlayerModel(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_setUserPlayerModel", 2, numParams)) {
+    if (isInvalidNumberOfParams("cs_setUserPlayerModel", numParams, 2)) {
         return;
     }
 #endif
 
     new id = get_param(1);
-    if (id < 1 || MaxClients < id) {
-        log_error(
-                AMX_ERR_NATIVE,
-                "[cs_setUserPlayerModel] Invalid player index specified: %d",
-                id);
+    if (isInvalidPlayerIndexParam("cs_setUserPlayerModel", id)) {
         return;
     }
 
-    if (!is_user_connected(id)) {
-        log_error(
-                AMX_ERR_NATIVE,
-                "[cs_setUserPlayerModel] User is not connected: %d",
-                id);
+    if (isInvalidPlayerConnectedParam("cs_setUserPlayerModel", id)) {
         return;
     }
 
     g_newModel = PlayerModel:get_param(2);
-
-    if (!isValidPlayerModel(g_newModel)) {
-        log_error(
-                AMX_ERR_NATIVE,
-                "[cs_setUserPlayerModel] Invalid player model specified: %d",
-                g_newModel);
+    if (isInvalidPlayerModelHandleParam("cs_setUserPlayerModel", g_newModel)) {
         return;
     }
 
 #if defined DEBUG_MODE
-    if (!validateParent(g_newModel)) {
-        log_error(
-                AMX_ERR_NATIVE,
-                "[cs_setUserPlayerModel] Invalid player model for parent: %d",
-                g_tempInternalPlayerModel[internal_playermodel_ParentHandle]);
+    if (isInvalidModelHandleParam("cs_setUserPlayerModel", g_newModel)) {
         return;
     }
 #endif
 
+    if (g_fw[onSetUserPlayerModelPre] == INVALID_HANDLE) {
+        g_fw[onSetUserPlayerModelPre] = CreateMultiForward(
+                "cs_onSetUserPlayerModelPre",
+                ET_STOP,
+                FP_CELL,
+                FP_CELL,
+                FP_CELL);
+    }
+
     new PlayerModel:oldModel = g_currentModel[id];
-    g_isInOnSetUserModelPre = true;
+    g_isInOnSetUserPlayerModelPre = true;
     g_fw[returnVal] = ExecuteForward(
             g_fw[onSetUserPlayerModelPre],
             g_fw[returnVal],
             oldModel,
             g_newModel);
-    g_isInOnSetUserModelPre = false;
+    g_isInOnSetUserPlayerModelPre = false;
 
     if (g_fw[returnVal] == 0) {
         log_error(
@@ -392,6 +406,15 @@ public _setUserPlayerModel(pluginId, numParams) {
     g_tempPlayerModel[playermodel_Parent] = g_tempModel;
     cs_set_user_model(id, g_tempPlayerModel[playermodel_Parent][model_Name]);
     g_currentModel[id] = g_newModel;
+
+    if (g_fw[onSetUserPlayerModelPost] == INVALID_HANDLE) {
+        g_fw[onSetUserPlayerModelPost] = CreateMultiForward(
+                "cs_onSetUserPlayerModelPost",
+                ET_IGNORE,
+                FP_CELL,
+                FP_CELL,
+                FP_CELL);
+    }
 
     g_fw[returnVal] = ExecuteForward(
             g_fw[onSetUserPlayerModelPost],
@@ -413,25 +436,17 @@ public _setUserPlayerModel(pluginId, numParams) {
  */
 public _resetUserPlayerModel(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_resetUserPlayerModel", 1, numParams)) {
+    if (isInvalidNumberOfParams("cs_resetUserPlayerModel", numParams, 1)) {
         return;
     }
 #endif
     
     new id = get_param(1);
-    if (id < 1 || MaxClients <= id) {
-        log_error(
-                AMX_ERR_NATIVE,
-                "[cs_resetUserPlayerModel] Invalid player index specified: %d",
-                id);
+    if (isInvalidPlayerIndexParam("cs_resetUserPlayerModel", id)) {
         return;
     }
 
-    if (!is_user_connected(id)) {
-        log_error(
-                AMX_ERR_NATIVE,
-                "[cs_resetUserPlayerModel] User is not connected: %d",
-                id);
+    if (isInvalidPlayerConnectedParam("cs_resetUserPlayerModel", id)) {
         return;
     }
     
@@ -444,25 +459,17 @@ public _resetUserPlayerModel(pluginId, numParams) {
  */
 public PlayerModel:_getUserPlayerModel(pluginId, numParams) {
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_getUserPlayerModel", 1, numParams)) {
+    if (isInvalidNumberOfParams("cs_getUserPlayerModel", numParams, 1)) {
         return Invalid_Player_Model;
     }
 #endif
 
     new id = get_param(1);
-    if (id < 1 || MaxClients <= id) {
-        log_error(
-                AMX_ERR_NATIVE,
-                "[cs_getUserPlayerModel] Invalid player index specified: %d",
-                id);
+    if (isInvalidPlayerIndexParam("cs_getUserPlayerModel", id)) {
         return Invalid_Player_Model;
     }
 
-    if (!is_user_connected(id)) {
-        log_error(
-                AMX_ERR_NATIVE,
-                "[cs_getUserPlayerModel] User is not connected: %d",
-                id);
+    if (isInvalidPlayerConnectedParam("cs_getUserPlayerModel", id)) {
         return Invalid_Player_Model;
     }
 
@@ -473,7 +480,7 @@ public PlayerModel:_getUserPlayerModel(pluginId, numParams) {
  * @link #cs_changeOnSetUserModelModel(model)
  */
 public _changeOnSetUserModelModel(pluginId, numParams) {
-    if (!g_isInOnSetUserModelPre) {
+    if (!g_isInOnSetUserPlayerModelPre) {
         log_error(
                 AMX_ERR_NATIVE,
                 "[cs_changeOnSetUserModelModel] Invalid state. Can only call \
@@ -482,28 +489,18 @@ public _changeOnSetUserModelModel(pluginId, numParams) {
     }
 
 #if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_changeOnSetUserModelModel", 1, numParams)) {
+    if (isInvalidNumberOfParams("cs_changeOnSetUserModelModel", numParams, 1)) {
         return;
     }
 #endif
 
     new PlayerModel:newModel = PlayerModel:get_param(1);
-    if (!isValidPlayerModel(newModel)) {
-        log_error(
-                AMX_ERR_NATIVE,
-                "[cs_changeOnSetUserModelModel] Invalid player model \
-                    specified: %d",
-                newModel);
+    if (isInvalidPlayerModelHandleParam("cs_changeOnSetUserModelModel", newModel)) {
         return;
     }
 
 #if defined DEBUG_MODE
-    if (!validateParent(newModel)) {
-        log_error(
-                AMX_ERR_NATIVE,
-                "[cs_changeOnSetUserModelModel] Invalid player model for \
-                    parent: %d",
-                g_tempInternalPlayerModel[internal_playermodel_ParentHandle]);
+    if (isInvalidModelHandleParam("cs_setUserPlayerModel", newModel)) {
         return;
     }
 #endif

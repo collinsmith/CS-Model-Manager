@@ -99,15 +99,19 @@ native PlayerModel:cs_registerPlayerModel(const name[]);
  * 
  * @example new PlayerModel:model = cs_findPlayerModelByName("example");
  * @example if (cs_findPlayerModelByName("example") != Invalid_Player_Model) { ... }
+ * @example new data[playermodel_t];
+ *          new PlayerModel:model = cs_findPlayerModelByName("example", data);
  * 
  * @param name Name of the player model to look up
+ * @param data Array of size {@link #templates/playermodel_t.playermodel_t}
+ *                 to store the existing player model in if one is found
  * 
  * @return Unique handle for the player model under the given name,
  *         otherwise {@code Invalid_Player_Model} if none was found.
  * 
  * @see #cs_isPlayerModelRegistered(name[])
  */
-native PlayerModel:cs_findPlayerModelByName(const name[]);
+native PlayerModel:cs_findPlayerModelByName(const name[], any:...);
 
 /**
  * Copies the data representing the specified player model into arrays of sizes
@@ -140,7 +144,7 @@ native PlayerModel:cs_getPlayerModelData(PlayerModel:model, data[playermodel_t])
  * 
  * @see #cs_validatePlayerModel(model)
  */
-native bool:cs_isValidPlayerModel({PlayerModel,_}:model);
+native bool:cs_isValidPlayerModel({PlayerModel,any}:model);
 
 /**
  * Tests whether or not a specified cell value is a valid handle for a player
@@ -155,7 +159,7 @@ native bool:cs_isValidPlayerModel({PlayerModel,_}:model);
  * 
  * @see #cs_isValidPlayerModel(model)
  */
-native bool:cs_validatePlayerModel({PlayerModel,_}:model);
+native bool:cs_validatePlayerModel({PlayerModel,any}:model);
 
 /**
  * Applies a player model on the player with the specified index, if that index
