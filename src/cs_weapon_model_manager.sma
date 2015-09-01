@@ -75,7 +75,123 @@ public plugin_natives() {
 
 public plugin_init() {
     register_plugin("CS Weapon Model Manager", VERSION_STRING, "Tirant");
+
+#if defined DEBUG_MODE
+    register_concmd(
+            "models.weapons.list",
+            "printModels",
+            ADMIN_CFG,
+            "Prints the list of registered weapon models");
+
+    register_concmd(
+            "models.weapons.get",
+            "printCurrentModels",
+            ADMIN_CFG,
+            "Prints each player and the current weapon models they have applied");
+#endif
 }
+
+/*******************************************************************************
+ * Console Commands
+ ******************************************************************************/
+
+#if defined DEBUG_MODE
+public printModels(id) {
+    console_print(id, "Outputting weapon models list...");
+    for (new i = 0; i < g_numModels; i++) {
+        ArrayGetArray(g_modelList, i, g_tempInternalWeaponModel);
+        cs_getModelData(
+                getInternalWeaponModelParentHandle(g_tempInternalWeaponModel),
+                g_tempModel);
+        console_print(
+                id,
+                "%d. %s [%s]",
+                i+1,
+                getModelName(g_tempModel),
+                getModelPath(g_tempModel));
+    }
+    
+    console_print(id, "%d weapon models registered", g_numModels);
+}
+
+public printCurrentModels(id) {
+    console_print(id, "Outputting players...");
+    new const szWEAPON_NAME[][] = {
+        "",
+        "weapon_p228",
+        "",
+        "weapon_scout",
+        "weapon_hegrenade",
+        "weapon_xm1014",
+        "weapon_c4",
+        "weapon_mac10",
+        "weapon_aug",
+        "weapon_smokegrenade",
+        "weapon_elite",
+        "weapon_fiveseven",
+        "weapon_ump45",
+        "weapon_sg550",
+        "weapon_galil",
+        "weapon_famas",
+        "weapon_usp",
+        "weapon_glock18",
+        "weapon_awp",
+        "weapon_mp5navy",
+        "weapon_m249",
+        "weapon_m3",
+        "weapon_m4a1",
+        "weapon_tmp",
+        "weapon_g3sg1",
+        "weapon_flashbang",
+        "weapon_deagle",
+        "weapon_sg552",
+        "weapon_ak47",
+        "weapon_knife",
+        "weapon_p90",
+        "weapon_vest",
+        "weapon_vesthelm",
+        "csi_defuser",
+        "csi_nvgs",
+        "",
+        "csi_priammo",
+        "csi_secammo",
+        "csi_shield"
+    };
+
+    new Snapshot:entries, numEntries, WeaponModel:model;
+    for (new i = 1; i <= MaxClients; i++) {
+        if (!is_user_connected(i)) {
+            console_print(id, "%d. DISCONNECTED", i);
+            continue;
+        }
+
+        console_print(id, "%d. %N", i, i);
+        if (g_currentModel[i] == Invalid_Trie) {
+            continue;
+        }
+        
+        entries = TrieSnapshotCreate(g_currentModel[i]);
+        numEntries = TrieSnapshotLength(entries);
+        for (new j = 0; j < numEntries; j++) {
+            TrieSnapshotGetKey(entries, j, g_weapon, 1);
+            TrieGetCell(g_currentModel[i], g_weapon, model);
+            ArrayGetArray(g_modelList, any:model-1, g_tempInternalWeaponModel);
+            cs_getModelData(
+                    getInternalWeaponModelParentHandle(g_tempInternalWeaponModel),
+                    g_tempModel);
+            console_print(
+                    id,
+                    "\t%s = %s",
+                    szWEAPON_NAME[g_weapon[0]],
+                    getModelName(g_tempModel));
+        }
+
+        TrieSnapshotDestroy(entries);
+    }
+    
+    console_print(id, "Done.");
+}
+#endif
 
 stock const _validWeapon1 = 0xFFFFFFFD;
 stock const _validWeapon2 = 0x2D;
