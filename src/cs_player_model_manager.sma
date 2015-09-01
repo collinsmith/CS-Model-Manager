@@ -17,10 +17,10 @@
 
 #define copyInto(%1,%2)\
     new Model:parentModel = cs_getModelData(\
-            %1[internal_playermodel_ParentHandle],\
+            getInternalPlayerModelParentHandle(%1),\
             g_tempModel);\
         assert cs_isValidModel(parentModel);\
-        %2[playermodel_Parent] = g_tempModel
+        getPlayerModelParent(%2) = g_tempModel
 
 #define isEmpty(%1)\
     (%1[0] == EOS)
@@ -28,6 +28,9 @@
 enum internal_playermodel_t {
     Model:internal_playermodel_ParentHandle
 }
+
+#define getInternalPlayerModelParentHandle(%1)\
+    %1[internal_playermodel_ParentHandle]
 
 enum _:Forward {
     returnVal = 0,
@@ -102,14 +105,14 @@ public printModels(id) {
     for (new i = 0; i < g_numModels; i++) {
         ArrayGetArray(g_modelList, i, g_tempInternalPlayerModel);
         cs_getModelData(
-                g_tempInternalPlayerModel[internal_playermodel_ParentHandle],
+                getInternalPlayerModelParentHandle(g_tempInternalPlayerModel),
                 g_tempModel);
         console_print(
                 id,
                 "%d. %s [%s]",
                 i+1,
-                g_tempModel[model_Name],
-                g_tempModel[model_Path]);
+                getModelName(g_tempModel),
+                getModelPath(g_tempModel));
     }
     
     console_print(id, "%d player models registered", g_numModels);
@@ -125,14 +128,14 @@ public printCurrentModels(id) {
         } else {
             ArrayGetArray(g_modelList, any:g_currentModel[i]-1, g_tempInternalPlayerModel);
             cs_getModelData(
-                    g_tempInternalPlayerModel[internal_playermodel_ParentHandle],
+                    getInternalPlayerModelParentHandle(g_tempInternalPlayerModel),
                     g_tempModel);
             console_print(
                     id,
                     "%d. %N [%s]",
                     i,
                     i,
-                    g_tempModel[model_Name]);
+                    getModelName(g_tempModel));
         }
     }
     
@@ -148,7 +151,7 @@ bool:validateParent(PlayerModel:model) {
     assert isValidPlayerModel(model);
     ArrayGetArray(g_modelList, any:model-1, g_tempInternalPlayerModel);
     return cs_isValidModel(
-            g_tempInternalPlayerModel[internal_playermodel_ParentHandle]);
+            getInternalPlayerModelParentHandle(g_tempInternalPlayerModel));
 }
 
 PlayerModel:findPlayerModelByName(name[]) {
@@ -180,7 +183,7 @@ stock bool:isInvalidModelHandleParam(const function[], PlayerModel:model) {
                 AMX_ERR_NATIVE,
                 "[%s] Invalid model handle for parent of player model: %d",
                 function,
-                g_tempInternalPlayerModel[internal_playermodel_ParentHandle]);
+                getInternalPlayerModelParentHandle(g_tempInternalPlayerModel));
         return true;
     }
 
@@ -209,29 +212,29 @@ public PlayerModel:_registerPlayerModel(pluginId, numParams) {
         g_modelTrie = TrieCreate();
     }
 
-    copyAndTerminate(1,g_tempPlayerModel[playermodel_Parent][model_Name],model_Name_length,g_tempPlayerModel[playermodel_Parent][model_NameLength]);
+    copyAndTerminate(1,getModelName(getPlayerModelParent(g_tempPlayerModel)),model_Name_length,getModelNameLength(getPlayerModelParent(g_tempPlayerModel)));
     
-    new PlayerModel:model = findPlayerModelByName(g_tempPlayerModel[playermodel_Parent][model_Name]);
+    new PlayerModel:model = findPlayerModelByName(getModelName(getPlayerModelParent(g_tempPlayerModel)));
     if (isValidPlayerModel(model)) {
         return model;
     }
 
-    g_tempPlayerModel[playermodel_Parent][model_PathLength] = cs_formatPlayerModelPath(
-            g_tempPlayerModel[playermodel_Parent][model_Name],
-            g_tempPlayerModel[playermodel_Parent][model_Path],
+    getModelPathLength(getPlayerModelParent(g_tempPlayerModel)) = cs_formatPlayerModelPath(
+            getModelName(getPlayerModelParent(g_tempPlayerModel)),
+            getModelPath(getPlayerModelParent(g_tempPlayerModel)),
             model_Path_length);
 
-    new Model:parent = g_tempInternalPlayerModel[internal_playermodel_ParentHandle]
+    new Model:parent = getInternalPlayerModelParentHandle(g_tempInternalPlayerModel)
             = cs_registerModel(
-                g_tempPlayerModel[playermodel_Parent][model_Name],
-                g_tempPlayerModel[playermodel_Parent][model_Path]);
+                getModelName(getPlayerModelParent(g_tempPlayerModel)),
+                getModelPath(getPlayerModelParent(g_tempPlayerModel)));
     if (!cs_isValidModel(parent)) {
         // Error already reported while registering
         return Invalid_Player_Model;
     }
 
     model = PlayerModel:(ArrayPushArray(g_modelList, g_tempInternalPlayerModel)+1);
-    TrieSetCell(g_modelTrie, g_tempPlayerModel[playermodel_Parent][model_Name], model);
+    TrieSetCell(g_modelTrie, getModelName(getPlayerModelParent(g_tempPlayerModel)), model);
     g_numModels++;
 
     if (g_fw[onPlayerModelRegistered] == INVALID_HANDLE) {
@@ -253,8 +256,8 @@ public PlayerModel:_registerPlayerModel(pluginId, numParams) {
                 AMX_ERR_NATIVE,
                 "[cs_registerPlayerModel] Failed to execute \
                     cs_onPlayerModelRegistered for model: %s [%s]",
-                g_tempPlayerModel[playermodel_Parent][model_Name],
-                g_tempPlayerModel[playermodel_Parent][model_Path]);
+                getModelName(getPlayerModelParent(g_tempPlayerModel)),
+                getModelPath(getPlayerModelParent(g_tempPlayerModel)));
     }
 
     return model;
@@ -274,12 +277,12 @@ public PlayerModel:_findPlayerModelByName(pluginId, numParams) {
         return Invalid_Player_Model;
     }
 
-    copyAndTerminate(1,g_tempPlayerModel[playermodel_Parent][model_Name],model_Name_length,g_tempPlayerModel[playermodel_Parent][model_NameLength]);
-    if (isEmpty(g_tempPlayerModel[playermodel_Parent][model_Name])) {
+    copyAndTerminate(1,getModelName(getPlayerModelParent(g_tempPlayerModel)),model_Name_length,getModelNameLength(getPlayerModelParent(g_tempPlayerModel)));
+    if (isEmpty(getModelName(getPlayerModelParent(g_tempPlayerModel)))) {
         return Invalid_Player_Model;
     }
 
-    new PlayerModel:model = findPlayerModelByName(g_tempPlayerModel[playermodel_Parent][model_Name]);
+    new PlayerModel:model = findPlayerModelByName(getModelName(getPlayerModelParent(g_tempPlayerModel)));
     if (isValidPlayerModel(model) && numParams == 2) {
         ArrayGetArray(g_modelList, any:model-1, g_tempInternalPlayerModel);
         copyInto(g_tempInternalPlayerModel,g_tempPlayerModel);
@@ -400,7 +403,7 @@ public _setUserPlayerModel(pluginId, numParams) {
     }
 
     copyInto(g_tempInternalPlayerModel,g_tempPlayerModel);
-    cs_set_user_model(id, g_tempPlayerModel[playermodel_Parent][model_Name]);
+    cs_set_user_model(id, getModelName(getPlayerModelParent(g_tempPlayerModel)));
     g_currentModel[id] = g_newModel;
 
     if (g_fw[onSetUserPlayerModelPost] == INVALID_HANDLE) {
