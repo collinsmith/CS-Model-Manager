@@ -26,3 +26,9 @@ enum weaponmodel_t {
      */
     weaponmodel_Weapon,
 };
+
+#define getWeaponModelParent(%1)\
+    %1[playermodel_Parent]
+
+#define getWeaponWeapon(%1)\
+    %1[weaponmodel_Weapon]

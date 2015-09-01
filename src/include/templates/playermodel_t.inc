@@ -21,3 +21,6 @@ enum playermodel_t {
      */
     playermodel_Parent[model_t],
 };
+
+#define getPlayerModelParent(%1)\
+    %1[playermodel_Parent]

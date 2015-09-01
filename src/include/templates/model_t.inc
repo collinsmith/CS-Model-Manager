@@ -49,3 +49,15 @@ enum model_t {
      */
     model_PathLength,
 };
+
+#define getModelName(%1)\
+    %1[model_Name]
+
+#define getModelNameLength(%1)\
+    %1[model_NameLength]
+
+#define getModelPath(%1)\
+    %1[model_Path]
+
+#define getModelPathLength(%1)\
+    %1[model_PathLength]
