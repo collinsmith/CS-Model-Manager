@@ -399,11 +399,7 @@ public _setUserPlayerModel(pluginId, numParams) {
                 id);
     }
 
-    new Model:parentModel = cs_getModelData(
-        g_tempInternalPlayerModel[internal_playermodel_ParentHandle],
-        g_tempModel);
-    assert cs_isValidModel(parentModel);
-    g_tempPlayerModel[playermodel_Parent] = g_tempModel;
+    copyInto(g_tempInternalPlayerModel,g_tempPlayerModel);
     cs_set_user_model(id, g_tempPlayerModel[playermodel_Parent][model_Name]);
     g_currentModel[id] = g_newModel;
 

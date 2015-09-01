@@ -44,6 +44,8 @@ static Array:g_modelList = Invalid_Array;
 static Trie:g_modelTrie = Invalid_Trie;
 static g_numModels = 0;
 
+static g_weapon[2];
+static Trie:g_currentModel[MAX_PLAYERS+1] = { Invalid_Trie, ... };
 static WeaponModel:g_newModel;
 static bool:g_isInOnSetUserWeaponModelPre;
 static g_tempModel[model_t];
@@ -102,6 +104,12 @@ WeaponModel:findWeaponModelByName(name[]) {
     }
 
     return Invalid_Weapon_Model;
+}
+
+getWeaponForModel(WeaponModel:model) {
+    assert isValidWeaponModel(model);
+    ArrayGetArray(g_modelList, any:model-1, g_tempInternalWeaponModel);
+    return g_tempInternalWeaponModel[internal_weaponmodel_Weapon];
 }
 
 bool:isInvalidWeaponModelHandleParam(const function[], WeaponModel:model) {
@@ -294,8 +302,7 @@ public _getWeaponForModel(pluginId, numParams) {
         return -1;
     }
 
-    ArrayGetArray(g_modelList, any:model-1, g_tempInternalWeaponModel);
-    return g_tempInternalWeaponModel[internal_weaponmodel_Weapon];
+    return getWeaponForModel(model);
 }
 
 /**
@@ -365,7 +372,14 @@ public _setUserWeaponModel(pluginId, numParams) {
                 FP_CELL);
     }
 
-    /*new WeaponModel:oldModel = g_currentModel[id];
+    g_weapon[0] = getWeaponForModel(g_newModel);
+    if (g_currentModel[id] == Invalid_Trie) {
+        g_currentModel[id] = TrieCreate();
+        TrieSetCell(g_currentModel[id], g_weapon, Invalid_Weapon_Model);
+    }
+
+    new WeaponModel:oldModel;
+    TrieGetCell(g_currentModel[id], g_weapon, oldModel);
     g_isInOnSetUserWeaponModelPre = true;
     g_fw[returnVal] = ExecuteForward(
             g_fw[onSetUserWeaponModelPre],
@@ -382,13 +396,9 @@ public _setUserWeaponModel(pluginId, numParams) {
                 id);
     }
 
-    new Model:parentModel = cs_getModelData(
-        g_tempInternalPlayerModel[internal_playermodel_ParentHandle],
-        g_tempModel);
-    assert cs_isValidModel(parentModel);
-    g_tempPlayerModel[playermodel_Parent] = g_tempModel;
-    cs_set_user_model(id, g_tempPlayerModel[playermodel_Parent][model_Name]);
-    g_currentModel[id] = g_newModel;
+    copyInto(g_tempInternalWeaponModel,g_tempWeaponModel);
+    //cs_set_user_model(id, g_tempPlayerModel[playermodel_Parent][model_Name]);
+    TrieSetCell(g_currentModel[id], g_weapon, g_newModel);
 
     if (g_fw[onSetUserWeaponModelPost] == INVALID_HANDLE) {
         g_fw[onSetUserWeaponModelPost] = CreateMultiForward(
@@ -403,7 +413,7 @@ public _setUserWeaponModel(pluginId, numParams) {
             g_fw[onSetUserWeaponModelPost],
             g_fw[returnVal],
             oldModel,
-            g_currentModel[id]);
+            g_newModel);
 
     if (g_fw[returnVal] == 0) {
         log_error(
@@ -411,5 +421,101 @@ public _setUserWeaponModel(pluginId, numParams) {
                 "[cs_setUserWeaponModel] Failed to execute \
                     cs_onSetUserWeaponModelPost on player %N",
                 id);
-    }*/
+    }
+}
+
+/**
+ * @link #cs_getUserWeaponModel(id,weapon)
+ */
+public WeaponModel:_getUserWeaponModel(pluginId, numParams) {
+#if defined DEBUG_MODE
+    if (isInvalidNumberOfParams("cs_getUserWeaponModel", numParams, 2)) {
+        return Invalid_Weapon_Model;
+    }
+#endif
+
+    new id = get_param(1);
+    if (isInvalidPlayerIndexParam("cs_getUserWeaponModel", id)) {
+        return Invalid_Weapon_Model;
+    }
+
+    if (isInvalidPlayerConnectedParam("cs_getUserWeaponModel", id)) {
+        return Invalid_Weapon_Model;
+    }
+
+    g_weapon[0] = get_param(2);
+    if (isInvalidWeaponParam("cs_getUserWeaponModel", g_weapon[0])) {
+        return Invalid_Weapon_Model;
+    }
+
+    if (g_currentModel[id] == Invalid_Trie) {
+        return Invalid_Weapon_Model;
+    }
+
+    new WeaponModel:weapon;
+    TrieGetCell(g_currentModel[id], g_weapon, weapon);
+    return weapon;
+}
+
+/**
+ * @link #cs_resetUserWeaponModel(id,weapon)
+ */
+public _resetUserWeaponModel(pluginId, numParams) {
+#if defined DEBUG_MODE
+    if (isInvalidNumberOfParams("cs_resetUserWeaponModel", numParams, 2)) {
+        return;
+    }
+#endif
+    
+    new id = get_param(1);
+    if (isInvalidPlayerIndexParam("cs_resetUserWeaponModel", id)) {
+        return;
+    }
+
+    if (isInvalidPlayerConnectedParam("cs_resetUserWeaponModel", id)) {
+        return;
+    }
+
+    g_weapon[0] = get_param(2);
+    if (isInvalidWeaponParam("cs_resetUserWeaponModel", g_weapon[0])) {
+        return;
+    }
+    
+    //cs_reset_user_model(id, weapon);
+    
+    if (g_currentModel[id] != Invalid_Trie) {
+        TrieSetCell(g_currentModel[id], g_weapon, Invalid_Weapon_Model);
+    }
+}
+
+/**
+ * @link #cs_changeOnSetUserWeaponModelModel(model)
+ */
+public _changeOnSetUserWeaponModelModel(pluginId, numParams) {
+    if (!g_isInOnSetUserWeaponModelPre) {
+        log_error(
+                AMX_ERR_NATIVE,
+                "[cs_changeOnSetUserWeaponModelModel] Invalid state. Can only \
+                    call this during cs_onSetUserWeaponModelPre");
+        return;
+    }
+
+#if defined DEBUG_MODE
+    if (isInvalidNumberOfParams("cs_changeOnSetUserWeaponModelModel", numParams, 1)) {
+        return;
+    }
+#endif
+
+    new WeaponModel:newModel = WeaponModel:get_param(1);
+    if (isInvalidWeaponModelHandleParam("cs_changeOnSetUserWeaponModelModel", newModel)) {
+        return;
+    }
+
+#if defined DEBUG_MODE
+    if (isInvalidModelHandleParam("cs_changeOnSetUserWeaponModelModel", newModel)) {
+        return;
+    }
+#endif
+
+    g_newModel = newModel;
 }
