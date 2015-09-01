@@ -322,7 +322,7 @@ public bool:_isValidWeaponModel(pluginId, numParams) {
 /**
  * @link #_validateWeaponModel(model)
  */
-public bool:cs_validateWeaponModel(pluginId, numParams) {
+public bool:_validateWeaponModel(pluginId, numParams) {
 #if defined DEBUG_MODE
     if (isInvalidNumberOfParams("cs_validateWeaponModel", numParams, 1)) {
         return false;
