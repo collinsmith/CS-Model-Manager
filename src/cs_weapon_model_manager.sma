@@ -16,11 +16,11 @@
 
 #define copyInto(%1,%2)\
     new Model:parentModel = cs_getModelData(\
-            %1[internal_weaponmodel_ParentHandle],\
+            getInternalWeaponModelParentHandle(%1),\
             g_tempModel);\
         assert cs_isValidModel(parentModel);\
-        %2[weaponmodel_Parent] = g_tempModel;\
-        %2[weaponmodel_Weapon] = %1[internal_weaponmodel_Weapon]
+        getWeaponModelParent(%2) = g_tempModel;\
+        getWeaponModelWeapon(%2) = getInternalWeaponModelWeapon(%1)
 
 #define isEmpty(%1)\
     (%1[0] == EOS)
@@ -29,6 +29,12 @@ enum internal_weaponmodel_t {
     Model:internal_weaponmodel_ParentHandle,
     internal_weaponmodel_Weapon
 }
+
+#define getInternalWeaponModelParentHandle(%1)\
+    %1[internal_weaponmodel_ParentHandle]
+
+#define getInternalWeaponModelWeapon(%1)\
+    %1[internal_weaponmodel_Weapon]
 
 enum _:Forward {
     returnVal = 0,
@@ -92,7 +98,7 @@ bool:validateParent(WeaponModel:model) {
     assert isValidWeaponModel(model);
     ArrayGetArray(g_modelList, any:model-1, g_tempInternalWeaponModel);
     return cs_isValidModel(
-            g_tempInternalWeaponModel[internal_weaponmodel_ParentHandle]);
+            getInternalWeaponModelParentHandle(g_tempInternalWeaponModel));
 }
 
 WeaponModel:findWeaponModelByName(name[]) {
@@ -108,7 +114,7 @@ WeaponModel:findWeaponModelByName(name[]) {
 getWeaponForModel(WeaponModel:model) {
     assert isValidWeaponModel(model);
     ArrayGetArray(g_modelList, any:model-1, g_tempInternalWeaponModel);
-    return g_tempInternalWeaponModel[internal_weaponmodel_Weapon];
+    return getInternalWeaponModelWeapon(g_tempInternalWeaponModel);
 }
 
 bool:isInvalidWeaponModelHandleParam(const function[], WeaponModel:model) {
@@ -130,7 +136,7 @@ stock bool:isInvalidModelHandleParam(const function[], WeaponModel:model) {
                 AMX_ERR_NATIVE,
                 "[%s] Invalid model handle for parent of weapon model: %d",
                 function,
-                g_tempInternalWeaponModel[internal_weaponmodel_ParentHandle]);
+                getInternalWeaponModelParentHandle(g_tempInternalWeaponModel));
         return true;
     }
 
@@ -173,36 +179,36 @@ public WeaponModel:_registerWeaponModel(pluginId, numParams) {
     }
 
     new weapon = g_tempWeaponModel[weaponmodel_Weapon]
-            = g_tempInternalWeaponModel[internal_weaponmodel_Weapon]
+            = getInternalWeaponModelWeapon(g_tempInternalWeaponModel)
             = get_param(1);
 
     if (isInvalidWeaponParam("cs_registerWeaponModel", weapon)) {
         return Invalid_Weapon_Model;
     }
 
-    copyAndTerminate(2,g_tempWeaponModel[weaponmodel_Parent][model_Name],model_Name_length,g_tempWeaponModel[weaponmodel_Parent][model_NameLength]);
+    copyAndTerminate(2,getModelName(getWeaponModelParent(g_tempWeaponModel)),model_Name_length,getModelNameLength(getWeaponModelParent(g_tempWeaponModel)));
     
-    new WeaponModel:model = findWeaponModelByName(g_tempWeaponModel[weaponmodel_Parent][model_Name]);
+    new WeaponModel:model = findWeaponModelByName(getModelName(getWeaponModelParent(g_tempWeaponModel)));
     if (isValidWeaponModel(model)) {
         return model;
     }
 
-    g_tempWeaponModel[weaponmodel_Parent][model_PathLength] = cs_formatModelPath(
-            g_tempWeaponModel[weaponmodel_Parent][model_Name],
-            g_tempWeaponModel[weaponmodel_Parent][model_Path],
+    getModelPathLength(getWeaponModelParent(g_tempWeaponModel)) = cs_formatModelPath(
+            getModelName(getWeaponModelParent(g_tempWeaponModel)),
+            getModelPath(getWeaponModelParent(g_tempWeaponModel)),
             model_Path_length);
 
-    new Model:parent = g_tempInternalWeaponModel[internal_weaponmodel_ParentHandle]
+    new Model:parent = getInternalWeaponModelParentHandle(g_tempInternalWeaponModel)
              = cs_registerModel(
-                g_tempWeaponModel[weaponmodel_Parent][model_Name],
-                g_tempWeaponModel[weaponmodel_Parent][model_Path]);
+                getModelName(getWeaponModelParent(g_tempWeaponModel)),
+                getModelPath(getWeaponModelParent(g_tempWeaponModel)));
     if (!cs_isValidModel(parent)) {
         // Error already reported while registering
         return Invalid_Weapon_Model;
     }
 
     model = WeaponModel:(ArrayPushArray(g_modelList, g_tempInternalWeaponModel)+1);
-    TrieSetCell(g_modelTrie, g_tempWeaponModel[weaponmodel_Parent][model_Name], model);
+    TrieSetCell(g_modelTrie, getModelName(getWeaponModelParent(g_tempWeaponModel)), model);
     g_numModels++;
 
     if (g_fw[onWeaponModelRegistered] == INVALID_HANDLE) {
@@ -224,8 +230,8 @@ public WeaponModel:_registerWeaponModel(pluginId, numParams) {
                 AMX_ERR_NATIVE,
                 "[cs_registerWeaponModel] Failed to execute \
                     cs_onWeaponModelRegistered for model: %s [%s]",
-                g_tempWeaponModel[weaponmodel_Parent][model_Name],
-                g_tempWeaponModel[weaponmodel_Parent][model_Path]);
+                getModelName(getWeaponModelParent(g_tempWeaponModel)),
+                getModelPath(getWeaponModelParent(g_tempWeaponModel)));
     }
 
     return model;
@@ -245,12 +251,12 @@ public WeaponModel:_findWeaponModelByName(pluginId, numParams) {
         return Invalid_Weapon_Model;
     }
 
-    copyAndTerminate(1,g_tempWeaponModel[weaponmodel_Parent][model_Name],model_Name_length,g_tempWeaponModel[weaponmodel_Parent][model_NameLength]);
-    if (isEmpty(g_tempWeaponModel[weaponmodel_Parent][model_Name])) {
+    copyAndTerminate(1,getModelName(getWeaponModelParent(g_tempWeaponModel)),model_Name_length,getModelNameLength(getWeaponModelParent(g_tempWeaponModel)));
+    if (isEmpty(getModelName(getWeaponModelParent(g_tempWeaponModel)))) {
         return Invalid_Weapon_Model;
     }
 
-    new WeaponModel:model = findWeaponModelByName(g_tempWeaponModel[weaponmodel_Parent][model_Name]);
+    new WeaponModel:model = findWeaponModelByName(getModelName(getWeaponModelParent(g_tempWeaponModel)));
     if (isValidWeaponModel(model) && numParams == 2) {
         ArrayGetArray(g_modelList, any:model-1, g_tempInternalWeaponModel);
         copyInto(g_tempInternalWeaponModel,g_tempWeaponModel);
@@ -396,7 +402,7 @@ public _setUserWeaponModel(pluginId, numParams) {
     }
 
     copyInto(g_tempInternalWeaponModel,g_tempWeaponModel);
-    //cs_set_user_model(id, g_tempPlayerModel[playermodel_Parent][model_Name]);
+    //cs_set_user_model(id, getModelName(getWeaponModelParent(g_tempWeaponModel)));
     TrieSetCell(g_currentModel[id], g_weapon, g_newModel);
 
     if (g_fw[onSetUserWeaponModelPost] == INVALID_HANDLE) {
