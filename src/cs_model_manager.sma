@@ -73,8 +73,8 @@ public printModels(id) {
                 id,
                 "%d. %s [%s]",
                 i+1,
-                g_tempModel[model_Name],
-                g_tempModel[model_Path]);
+                getModelName(g_tempModel),
+                getModelPath(g_tempModel));
     }
     
     console_print(id, "%d models registered", g_numModels);
@@ -117,31 +117,31 @@ public Model:_registerModel(pluginId, numParams) {
         g_modelTrie = TrieCreate();
     }
 
-    copyAndTerminate(1,g_tempModel[model_Name],model_Name_length,g_tempModel[model_NameLength]);
-    if (isEmpty(g_tempModel[model_Name])) {
+    copyAndTerminate(1,getModelName(g_tempModel),model_Name_length,getModelNameLength(g_tempModel));
+    if (isEmpty(getModelName(g_tempModel))) {
         log_error(AMX_ERR_NATIVE, "[cs_registerModel] Invalid parameter \
                 specified: 'name' cannot be empty");
         return Invalid_Model;
     }
 
-    new Model:model = findModelByName(g_tempModel[model_Name]);
+    new Model:model = findModelByName(getModelName(g_tempModel));
     if (isValidModel(model)) {
         return model;
     }
 
-    copyAndTerminate(2,g_tempModel[model_Path],model_Path_length,g_tempModel[model_PathLength]);
-    if (isEmpty(g_tempModel[model_Path])) {
+    copyAndTerminate(2,getModelPath(g_tempModel),model_Path_length,getModelPathLength(g_tempModel));
+    if (isEmpty(getModelPath(g_tempModel))) {
         log_error(AMX_ERR_NATIVE, "[cs_registerModel] Invalid parameter \
                 specified: 'path' cannot be empty");
         return Invalid_Model;
-    } else if (!cs_precache(g_tempModel[model_Path])) {
+    } else if (!cs_precache(getModelPath(g_tempModel))) {
         log_error(AMX_ERR_NATIVE, "[cs_registerModel] Failed to precache \
-                model: %s [%s]", g_tempModel[model_Name], g_tempModel[model_Path]);
+                model: %s [%s]", getModelName(g_tempModel), getModelPath(g_tempModel));
         return Invalid_Model;
     }
 
     model = Model:(ArrayPushArray(g_modelList, g_tempModel)+1);
-    TrieSetCell(g_modelTrie, g_tempModel[model_Name], model);
+    TrieSetCell(g_modelTrie, getModelName(g_tempModel), model);
     g_numModels++;
 
     if (g_fw[onModelRegistered] == INVALID_HANDLE) {
@@ -160,7 +160,7 @@ public Model:_registerModel(pluginId, numParams) {
 
     if (g_fw[returnVal] == 0) {
         log_error(AMX_ERR_NATIVE, "[cs_registerModel] Failed to execute \
-                cs_onModelRegistered for model: %s [%s]", g_tempModel[model_Name], g_tempModel[model_Path]);
+                cs_onModelRegistered for model: %s [%s]", getModelName(g_tempModel), getModelPath(g_tempModel));
     }
 
     return model;
@@ -180,12 +180,12 @@ public Model:_findModelByName(pluginId, numParams) {
         return Invalid_Model;
     }
 
-    copyAndTerminate(1,g_tempModel[model_Name],model_Name_length,g_tempModel[model_NameLength]);
-    if (isEmpty(g_tempModel[model_Name])) {
+    copyAndTerminate(1,getModelName(g_tempModel),model_Name_length,getModelNameLength(g_tempModel));
+    if (isEmpty(getModelName(g_tempModel))) {
         return Invalid_Model;
     }
 
-    return findModelByName(g_tempModel[model_Name]);
+    return findModelByName(getModelName(g_tempModel));
 }
 
 /**
