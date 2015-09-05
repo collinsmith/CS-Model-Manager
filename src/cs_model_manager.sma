@@ -1,228 +1,144 @@
 #define VERSION_STRING "0.0.1"
 #define DEBUG_MODE
 
+#define BUFFER_LENGTH 255
+
+#define LOG_BUFFER_LENGTH 255
+#define LOG_PATH_LENGTH 63
+
 #include <amxmodx>
 
-#include "include/templates/model_t.inc"
 #include "include/cs_precache_stocks.inc"
 #include "include/param_test_stocks.inc"
 
-#define INITIAL_MODELS_SIZE 16
+#include "include/cs_model_manager.inc"
 
-#define copyAndTerminate(%1,%2,%3,%4)\
-    %4 = get_string(%1, %2, %3);\
-    %2[%4] = EOS
-
-#define isEmpty(%1)\
-    (%1[0] == EOS)
+new g_szLogBuffer[LOG_BUFFER_LENGTH+1] = "[cs_model_manager] ";
+new g_szLogFilePath[LOG_PATH_LENGTH+1];
 
 enum _:Forward {
     returnVal = 0,
     onModelRegistered
-};
+}
 
 static g_fw[Forward] = { INVALID_HANDLE, ... };
 
-static Array:g_modelList = Invalid_Array;
-static Trie:g_modelTrie = Invalid_Trie;
+static Trie:g_modelLookup = Invalid_Trie;
 static g_numModels = 0;
-
-static g_tempModel[model_t];
 
 public plugin_natives() {
     register_library("cs_model_manager");
 
     register_native("cs_registerModel", "_registerModel", 0);
-    register_native("cs_findModelByName", "_findModelByName", 0);
-    register_native("cs_getModelData", "_getModelData", 0);
-    register_native("cs_isValidModel", "_isValidModel", 0);
 }
 
 public plugin_init() {
     register_plugin("CS Model Manager", VERSION_STRING, "Tirant");
-    create_cvar(
-            "cs_model_manager_version",
-            VERSION_STRING,
-            FCVAR_SPONLY,
-            "The current version of cs_model_manager being used");
 
-#if defined DEBUG_MODE
-    register_concmd(
-            "models.list",
-            "printModels",
-            ADMIN_CFG,
-            "Prints the list of registered models");
-#endif
+    configureLogFilePath();
+    state logging;
+
+    cs_registerModel(.name = "test", .path = "another.mdl");
+    cs_registerModel(.name = "test", .path = "another");
 }
 
-public plugin_end() {
-    ArrayDestroy(g_modelList);
-    TrieDestroy(g_modelTrie);
+configureLogFilePath() {
+    assert g_szLogFilePath[0] == EOS;
+    log("Configuring log file");
+
+    new szTime[16];
+    get_time("%Y-%m-%d", szTime, charsmax(szTime));
+    formatex(g_szLogFilePath, LOG_PATH_LENGTH, "cs_model_manager_%s.log", szTime);
 }
 
-/*******************************************************************************
- * Console Commands
- ******************************************************************************/
+log(format[], any:...) <> {
+#pragma unused format
+}
 
-#if defined DEBUG_MODE
-public printModels(id) {
-    console_print(id, "Outputting models list...");
-    for (new i = 0; i < g_numModels; i++) {
-        ArrayGetArray(g_modelList, i, g_tempModel);
-        console_print(
-                id,
-                "%d. %s [%s]",
-                i+1,
-                getModelName(g_tempModel),
-                getModelPath(g_tempModel));
+log(format[], any:...) <logging> {
+    new length = 0;
+    g_szLogBuffer[length++] = '[';
+    length += copy(g_szLogBuffer[length],
+                   LOG_BUFFER_LENGTH-length,
+                   "cs_model_manager");
+    g_szLogBuffer[length++] = ']';
+    g_szLogBuffer[length++] = ' ';
+    length += vformat(g_szLogBuffer[length], LOG_BUFFER_LENGTH-length, format, 2);
+    g_szLogBuffer[length] = EOS;
+    log_to_file(g_szLogFilePath, g_szLogBuffer);
+}
+
+public Trie:_registerModel(pluginId, numParams) {
+    log("Registering model...");
+    new Trie:model = Trie:get_param(5);
+    if (model == Invalid_Trie) {
+        log("  No valid trie passed, creating trie");
+        model = TrieCreate();
     }
+
+    log("  trie = %d", model);
+
+    new buffer[BUFFER_LENGTH+1];
+    new pathLen = min(get_param(4)-1, BUFFER_LENGTH);
+    getPath(buffer, model, pathLen);
     
-    console_print(id, "%d models registered", g_numModels);
-}
-#endif
 
-bool:isValidModel(Model:model) {
-    return Invalid_Model < model && any:model <= g_numModels;
-}
-
-Model:findModelByName(name[]) {
-    strtolower(name);
-    new Model:model;
-    if (TrieGetCell(g_modelTrie, name, model)) {
-        return model;
+    log("  precaching \"%s\"", buffer);
+    if (!cs_precache(buffer)) {
+        log("  failed to precache \"%s\"", buffer);
+        return Invalid_Trie;
     }
 
-    return Invalid_Model;
-}
+    log("  path = \"%s\"", buffer);
+    log("  pathLen = %d", pathLen);
 
-/*******************************************************************************
- * NATIVES
- ******************************************************************************/
-
-/**
- * @link #cs_registerModel(name[],path[])
- */
-public Model:_registerModel(pluginId, numParams) {
-#if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_registerModel", numParams, 2)) {
-        return Invalid_Model;
-    }
-#endif
-
-    if (g_modelList == Invalid_Array) {
-        g_modelList = ArrayCreate(model_t, INITIAL_MODELS_SIZE);
+    new nameLen = min(get_param(2)-1, BUFFER_LENGTH);
+    if (nameLen > 0) {
+        get_string(1, buffer, nameLen);
+        buffer[nameLen] = EOS;
+        log("  writing to trie %d: %s = \"%s\"", model, MODEL_NAME, buffer);
+        TrieSetString(model, MODEL_NAME, buffer);
+    } else {
+        TrieGetString(model, MODEL_NAME, buffer, BUFFER_LENGTH);
+        log("  reading from trie %d... %s = \"%s\"", model, MODEL_NAME, buffer);
     }
 
-    if (g_modelTrie == Invalid_Trie) {
-        g_modelTrie = TrieCreate();
-    }
+    log("  name = \"%s\"", buffer);
+    log("  nameLen = %d", nameLen);
 
-    copyAndTerminate(1,getModelName(g_tempModel),model_Name_length,getModelNameLength(g_tempModel));
-    if (isEmpty(getModelName(g_tempModel))) {
-        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Invalid parameter \
-                specified: 'name' cannot be empty");
-        return Invalid_Model;
-    }
-
-    new Model:model = findModelByName(getModelName(g_tempModel));
-    if (isValidModel(model)) {
-        return model;
-    }
-
-    copyAndTerminate(2,getModelPath(g_tempModel),model_Path_length,getModelPathLength(g_tempModel));
-    if (isEmpty(getModelPath(g_tempModel))) {
-        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Invalid parameter \
-                specified: 'path' cannot be empty");
-        return Invalid_Model;
-    } else if (!cs_precache(getModelPath(g_tempModel))) {
-        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Failed to precache \
-                model: %s [%s]", getModelName(g_tempModel), getModelPath(g_tempModel));
-        return Invalid_Model;
-    }
-
-    model = Model:(ArrayPushArray(g_modelList, g_tempModel)+1);
-    TrieSetCell(g_modelTrie, getModelName(g_tempModel), model);
-    g_numModels++;
-
-    if (g_fw[onModelRegistered] == INVALID_HANDLE) {
-        g_fw[onModelRegistered] = CreateMultiForward(
-                "cs_onModelRegistered",
-                ET_IGNORE,
-                FP_CELL,
-                FP_ARRAY);
-    }
-
-    g_fw[returnVal] = ExecuteForward(
-            g_fw[onModelRegistered],
-            g_fw[returnVal],
-            model,
-            PrepareArray(g_tempModel, model_t));
-
-    if (g_fw[returnVal] == 0) {
-        log_error(AMX_ERR_NATIVE, "[cs_registerModel] Failed to execute \
-                cs_onModelRegistered for model: %s [%s]", getModelName(g_tempModel), getModelPath(g_tempModel));
+    if (pathLen > 0 || nameLen > 0) {
+        log("  Getting key-value pairs for trie %d", model);
+        new len;
+        TrieGetString(model, MODEL_PATH, buffer, BUFFER_LENGTH, len);
+        buffer[pathLen] = EOS;
+        log("    %s = \"%s\" [%d]", MODEL_PATH, buffer, len);
+        TrieGetString(model, MODEL_NAME, buffer, BUFFER_LENGTH, len);
+        buffer[nameLen] = EOS;
+        log("    %s = \"%s\" [%d]", MODEL_NAME, buffer, len);
     }
 
     return model;
 }
 
-/**
- * @link #cs_findModelByName(name[])
- */
-public Model:_findModelByName(pluginId, numParams) {
-#if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_findModelByName", numParams, 1)) {
-        return Invalid_Model;
+fixPath(buffer[], &model, &pathLen) {
+    pathLen = min(get_param(4)-1, BUFFER_LENGTH);
+    if (pathLen > 0) {
+        get_string(3, buffer, pathLen);
+        buffer[pathLen] = EOS;
+        if (equali(buffer[pathLen-4],".mdl")) {
+            log("  path ends with .mdl");
+        } else {
+            log("  appending .mdl to path");
+            log("  buffer = \"%s\"", buffer);
+            pathLen += copy(buffer[pathLen], BUFFER_LENGTH, ".mdl");
+            buffer[pathLen] = EOS;
+            log("  buffer = \"%s\"", buffer);
+        }
+        
+        log("  writing to trie %d: %s = \"%s\"", model, MODEL_PATH, buffer);
+        TrieSetString(model, MODEL_PATH, buffer);
+    } else {
+        TrieGetString(model, MODEL_PATH, buffer, BUFFER_LENGTH);
+        log("  reading from trie %d... %s = \"%s\"", model, MODEL_PATH, buffer);
     }
-#endif
-
-    if (g_modelList == Invalid_Array || g_modelTrie == Invalid_Trie) {
-        return Invalid_Model;
-    }
-
-    copyAndTerminate(1,getModelName(g_tempModel),model_Name_length,getModelNameLength(g_tempModel));
-    if (isEmpty(getModelName(g_tempModel))) {
-        return Invalid_Model;
-    }
-
-    return findModelByName(getModelName(g_tempModel));
-}
-
-/**
- * @link #cs_getModelData(model,data[model_t])
- */
-public Model:_getModelData(pluginId, numParams) {
-#if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_findModelByName", numParams, 2)) {
-        return Invalid_Model;
-    }
-
-    // TODO: Perform validation on the outgoing array size
-    //if () {
-    //    return Invalid_Model;
-    //}
-#endif
-
-    new Model:model = Model:get_param(1);
-    if (!isValidModel(model)) {
-        return Invalid_Model;
-    }
-    
-    ArrayGetArray(g_modelList, any:model-1, g_tempModel);
-    set_array(2, g_tempModel, model_t);
-    return model;
-}
-
-/**
- * @link #cs_isValidModel(model)
- */
-public bool:_isValidModel(pluginId, numParams) {
-#if defined DEBUG_MODE
-    if (isInvalidNumberOfParams("cs_isValidModel", numParams, 1)) {
-        return false;
-    }
-#endif
-
-    new Model:model = Model:get_param(1);
-    return isValidModel(model);
 }
