@@ -1,0 +1,3 @@
+[submodule "src/include/modelmanager-inc"]
+	path = src/include/modelmanager-inc
+	url = https://github.com/collinsmith/modelmanager-inc.git
