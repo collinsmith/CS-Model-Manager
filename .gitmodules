@@ -1,3 +1,6 @@
 [submodule "src/include/modelmanager-inc"]
 	path = src/include/modelmanager-inc
 	url = https://github.com/collinsmith/modelmanager-inc.git
+[submodule "src/include/stocks"]
+	path = src/include/stocks
+	url = https://github.com/collinsmith/stocks.git
