@@ -46,10 +46,12 @@ stock getBuildId(buildId[], len = sizeof buildId) {
 }
 
 public Trie: _loadModel(pluginId, numParams) {
-    if (!numParamsEqual(g_Logger, 1, numParams)) {
+    if (!numParamsEqual(g_Logger, 2, numParams)) {
         return Invalid_Trie;
     }
     
+    LoggerLogDebug(g_Logger, "Loading model...");
+
     if (g_Models == Invalid_Trie) {
         g_Models = TrieCreate();
         g_numModels = 0;
@@ -58,13 +60,36 @@ public Trie: _loadModel(pluginId, numParams) {
                 g_Models);
     }
 
+    new Trie: trie = Trie:(get_param_byref(1));
+    if (trie == Invalid_Trie) {
+        LoggerLogDebug(g_Logger, "Invalid_Trie passed, creating trie");
+        trie = TrieCreate();
+        LoggerLogDebug(g_Logger,
+                "Initialized model as Trie: %d",
+                trie);
+    }
+
     new path[256];
-    get_string(1, path, charsmax(path));
+    get_string(2, path, charsmax(path));
     fixPath(path);
     if (!precacheModel(path, g_Logger)) {
         return Invalid_Trie;
     }
 
-    g_numModels++;
-    return Invalid_Trie;
+    TrieSetString(trie, MODEL_PATH, path);
+
+    new Trie: existingModel;
+    if (TrieGetCell(g_Models, path, existingModel)) {
+        LoggerLogDebug(g_Logger,
+                "Overwriting existing Trie: %d -> %d",
+                existingModel,
+                trie);
+        TrieDestroy(existingModel);
+    } else {
+        g_numModels++;
+    }
+    
+    TrieSetCell(g_Models, path, trie);
+    set_param_byref(1, any:(trie));
+    return trie;
 }
