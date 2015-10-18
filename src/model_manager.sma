@@ -15,12 +15,10 @@ static Logger: g_Logger;
 static Trie: g_Models;
 static g_numModels;
 
-public plugin_precache() {
-    //...
-}
-
 public plugin_natives() {
     register_library("model_manager");
+
+    register_native("mdl_logitadModel", "_loadModel", 0);
 }
 
 public plugin_init() {
